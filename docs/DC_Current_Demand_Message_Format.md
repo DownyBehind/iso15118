@@ -103,6 +103,48 @@
   - **SAIDType**: 1 byte (1..255).
   - **responseCodeType / EVSENotificationType / DC_EVSEStatusCodeType / DC_EVErrorCodeType**: 고정 열거 문자열.
 
+### 3.1 Worst Case 크기 (MAC Layer 기준, 바이트)
+
+Worst Case는 **MAC 계층에서 한 프레임으로 전송되는 전체 octet 수**로 정의한다. 즉, MAC 헤더부터 애플리케이션 payload(V2GTP) 끝까지의 **MAC 프레임 전체 길이**를 기준으로 한다.
+
+#### 계층별 고정/상한 값 (참고)
+
+| 계층 | 항목 | 크기 (bytes) | 비고 |
+|------|------|---------------|------|
+| **MAC** | Ethernet II 헤더 | 14 | DST(6) + SRC(6) + EtherType(2). 802.1Q VLAN 시 +4 → 18 |
+| **L3** | IPv6 헤더 | 40 | 고정. ISO 15118는 IPv6 사용 |
+| **L4** | TCP 헤더 (옵션 없음) | 20 | 옵션 포함 시 최대 60 |
+| **TLS** (선택) | 레코드 헤더 + 패딩/오버헤드 | 약 21 | 레코드 헤더 5 + 블록 암호 패딩 등 |
+| **V2GTP** | 헤더 | 8 | 고정 |
+| **V2GTP** | Payload (EXI) | 가변 | 아래 Req/Res 상한 사용 |
+
+#### 애플리케이션 데이터 상한 (EXI 입력 기준)
+
+**V2G_Message Header (공통):** SessionID 8 B → **8**
+
+**CurrentDemandReq Body:** DC_EVStatus(33) + PhysicalValueType×9(36) + boolean×2(2) → **71**  
+**CurrentDemandRes Body:** ResponseCode(36) + DC_EVSEStatus(45) + PhysicalValue×5(20) + boolean×4(4) + EVSEID(37) + SAScheduleTupleID(1) + MeterInfo(114) + ReceiptRequired(1) → **257**
+
+스키마 기반 EXI 인코딩 시 위 데이터 상한에 구조 오버헤드가 더해져, **EXI payload 예상 상한**은 Req **약 150 B**, Res **약 380 B**로 둔다.
+
+#### MAC Layer 기준 Worst Case (프레임 전체, bytes)
+
+아래는 **MAC 프레임 전체**를 계층별로 쌓아 올린 값이다. (Ethernet II 14 B, IPv6 40 B, TCP 20 B 가정.)
+
+| 구분 | CurrentDemandReq | CurrentDemandRes |
+|------|------------------|------------------|
+| EXI payload 예상 상한 | 150 | 380 |
+| V2GTP (8 + EXI) | 158 | 388 |
+| TCP payload (= V2GTP) | 158 | 388 |
+| TCP 세그먼트 (TCP 헤더 20 + payload) | 178 | 408 |
+| IPv6 패킷 (IPv6 헤더 40 + TCP 세그먼트) | 218 | 448 |
+| **MAC 프레임 (Ethernet 14 + IPv6 패킷)** | **232** | **462** |
+| **TLS 사용 시** (오버헤드 약 21 B 추가) | **약 253** | **약 483** |
+
+- **MAC 프레임** = MAC 헤더(14) + IPv6(40) + TCP(20) + V2GTP(8 + EXI). VLAN 태그(4 B) 사용 시 위 MAC 프레임 값에 **+4**.
+- **TLS 사용 시**: TCP payload가 TLS 레코드로 감싸지며, 레코드 헤더·암호화 패딩 등으로 약 21 B 추가로 위 표와 같이 산정.
+- **DIN SPEC CurrentDemandRes**: EVSEID·SAScheduleTupleID·MeterInfo·ReceiptRequired 없음 → EXI/V2GTP 더 작음 → MAC 프레임 Worst Case도 **462 B 미만**.
+
 **대략적인 XML 크기 (참고용)**  
 - CurrentDemandReq: 최소 필수만 해도 수십~100자 단위 XML, 선택 필드 모두 포함 시 수백 자 수준.
 - CurrentDemandRes: EVSEID·MeterInfo 등으로 더 커질 수 있음.
