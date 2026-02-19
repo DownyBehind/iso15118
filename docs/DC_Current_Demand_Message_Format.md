@@ -105,35 +105,49 @@
 
 ### 3.1 Worst Case 크기 (MAC Layer 기준, 바이트)
 
-Worst Case는 **MAC 계층에서 한 프레임으로 전송되는 전체 octet 수**로 정의한다. 즉, MAC 헤더부터 애플리케이션 payload(V2GTP) 끝까지의 **MAC 프레임 전체 길이**를 기준으로 한다.
+Worst Case는 **MAC 계층에서 한 프레임으로 전송되는 전체 octet 수**로 정의한다. 아래에서 **사양에 명시된 것**과 **문서 작성 시 추정한 것**을 구분해 둔다.
+
+#### 사양(ISO 15118-2 / DIN SPEC)에 있는 내용
+
+- **필드별 타입·상한**: 메시지 스키마(XSD)에 정의된 타입 제한만 있다.  
+  예: `sessionIDType` hexBinary max 8, `evseIDType` string 7..37자, `meterIDType` max 32, `PhysicalValueType`(Multiplier/Unit/Value), `MeterInfoType` 내부 길이 등.  
+  → 이로부터 **데이터 값 상한**(Req Body 71 B, Res Body 257 B, Header 8 B)을 **유도**할 수 있다.
+- **V2GTP 헤더**: ISO 15118-2 Section 7.8 등에서 **8 octets**로 정의.
+- **EXI 사용**: 사양에서 메시지를 EXI로 인코딩하도록 규정하지만, **CurrentDemand Req/Res에 대한 “EXI payload 최대 바이트 수”는 사양에 명시되어 있지 않다.**
+
+#### 사양에 없는 내용 (본 문서 추정)
+
+- **EXI payload 예상 상한**(Req 약 150 B, Res 약 380 B): 스키마 기반 EXI 인코더를 가정한 **추정치**. 구현·옵션에 따라 달라질 수 있음.
+- **MAC 프레임 전체 크기**(232 B / 462 B 등): 위 EXI 추정치에 MAC·IPv6·TCP·V2GTP 헤더를 더한 **계산 결과**이며, 사양에 정의된 값이 아님.
+- **MAC(Ethernet 14 B), IPv6(40 B), TCP(20 B)** 등은 IETF/IEEE 등 일반 네트워크 사양 기준이며, ISO 15118 자체에서 “MAC 프레임 최대 길이”를 정한 것은 아님.
 
 #### 계층별 고정/상한 값 (참고)
 
-| 계층 | 항목 | 크기 (bytes) | 비고 |
+| 계층 | 항목 | 크기 (bytes) | 출처 |
 |------|------|---------------|------|
-| **MAC** | Ethernet II 헤더 | 14 | DST(6) + SRC(6) + EtherType(2). 802.1Q VLAN 시 +4 → 18 |
-| **L3** | IPv6 헤더 | 40 | 고정. ISO 15118는 IPv6 사용 |
-| **L4** | TCP 헤더 (옵션 없음) | 20 | 옵션 포함 시 최대 60 |
-| **TLS** (선택) | 레코드 헤더 + 패딩/오버헤드 | 약 21 | 레코드 헤더 5 + 블록 암호 패딩 등 |
-| **V2GTP** | 헤더 | 8 | 고정 |
-| **V2GTP** | Payload (EXI) | 가변 | 아래 Req/Res 상한 사용 |
+| **MAC** | Ethernet II 헤더 | 14 | IETF/IEEE (802.1Q VLAN 시 +4) |
+| **L3** | IPv6 헤더 | 40 | IETF (ISO 15118는 IPv6 사용 규정) |
+| **L4** | TCP 헤더 (옵션 없음) | 20 | IETF |
+| **TLS** (선택) | 레코드 헤더 + 패딩/오버헤드 | 약 21 | 일반적 추정 |
+| **V2GTP** | 헤더 | 8 | **ISO 15118-2** |
+| **V2GTP** | Payload (EXI) | 가변 | **사양에 상한 미명시** → 아래는 추정 |
 
-#### 애플리케이션 데이터 상한 (EXI 입력 기준)
+#### 애플리케이션 데이터 상한 (사양 스키마 기준)
 
-**V2G_Message Header (공통):** SessionID 8 B → **8**
+**V2G_Message Header (공통):** SessionID 8 B → **8** (사양: sessionIDType max 8 octets)
 
 **CurrentDemandReq Body:** DC_EVStatus(33) + PhysicalValueType×9(36) + boolean×2(2) → **71**  
-**CurrentDemandRes Body:** ResponseCode(36) + DC_EVSEStatus(45) + PhysicalValue×5(20) + boolean×4(4) + EVSEID(37) + SAScheduleTupleID(1) + MeterInfo(114) + ReceiptRequired(1) → **257**
+**CurrentDemandRes Body:** ResponseCode(36) + DC_EVSEStatus(45) + PhysicalValue×5(20) + boolean×4(4) + EVSEID(37) + SAScheduleTupleID(1) + MeterInfo(114) + ReceiptRequired(1) → **257**  
 
-스키마 기반 EXI 인코딩 시 위 데이터 상한에 구조 오버헤드가 더해져, **EXI payload 예상 상한**은 Req **약 150 B**, Res **약 380 B**로 둔다.
+위 71/257은 사양(XSD)의 타입·maxLength 등으로부터 계산한 **데이터 값 상한**이다.
 
-#### MAC Layer 기준 Worst Case (프레임 전체, bytes)
+#### MAC Layer 기준 Worst Case (프레임 전체, bytes) — EXI는 추정치 사용
 
-아래는 **MAC 프레임 전체**를 계층별로 쌓아 올린 값이다. (Ethernet II 14 B, IPv6 40 B, TCP 20 B 가정.)
+EXI payload는 사양에 최대 길이가 없으므로, **스키마 기반 EXI를 가정한 추정 상한** Req **150 B**, Res **380 B**를 사용해 MAC 프레임 전체를 계산한 값이다.
 
 | 구분 | CurrentDemandReq | CurrentDemandRes |
 |------|------------------|------------------|
-| EXI payload 예상 상한 | 150 | 380 |
+| EXI payload **추정 상한** (사양 아님) | 150 | 380 |
 | V2GTP (8 + EXI) | 158 | 388 |
 | TCP payload (= V2GTP) | 158 | 388 |
 | TCP 세그먼트 (TCP 헤더 20 + payload) | 178 | 408 |
@@ -141,9 +155,27 @@ Worst Case는 **MAC 계층에서 한 프레임으로 전송되는 전체 octet �
 | **MAC 프레임 (Ethernet 14 + IPv6 패킷)** | **232** | **462** |
 | **TLS 사용 시** (오버헤드 약 21 B 추가) | **약 253** | **약 483** |
 
-- **MAC 프레임** = MAC 헤더(14) + IPv6(40) + TCP(20) + V2GTP(8 + EXI). VLAN 태그(4 B) 사용 시 위 MAC 프레임 값에 **+4**.
-- **TLS 사용 시**: TCP payload가 TLS 레코드로 감싸지며, 레코드 헤더·암호화 패딩 등으로 약 21 B 추가로 위 표와 같이 산정.
-- **DIN SPEC CurrentDemandRes**: EVSEID·SAScheduleTupleID·MeterInfo·ReceiptRequired 없음 → EXI/V2GTP 더 작음 → MAC 프레임 Worst Case도 **462 B 미만**.
+- **MAC 프레임** = MAC(14) + IPv6(40) + TCP(20) + V2GTP(8 + EXI). VLAN 태그(4 B) 사용 시 **+4**.
+- **TLS 사용 시**: 레코드 헤더·패딩 등 약 21 B 추가로 산정.
+- **DIN SPEC CurrentDemandRes**: EVSEID·SAScheduleTupleID·MeterInfo·ReceiptRequired 없음 → 462 B 미만.
+
+### 3.2 EXI payload 상한을 다루는 외부 문서
+
+**결론: “CurrentDemand Req/Res의 EXI payload 최대 바이트 수”를 명시한 공개·표준 문서는 없다.**
+
+| 문서 | EXI payload 바이트 상한 여부 | 비고 |
+|------|------------------------------|------|
+| **ISO 15118-2:2014** | 없음 | 메시지 구조(XSD), EXI 사용 규정. 메시지별 “EXI 최대 길이” 미명시. |
+| **DIN SPEC 70121** | 없음 | 동일. |
+| **ISO 15118-20** | 없음 | 2세대 프로토콜; 메시지/인코딩은 다르며, EXI payload 상한 정의는 공개 검색 범위에서 확인되지 않음. |
+| **W3C EXI 1.0 (Efficient XML Interchange)** | 없음 | 인코딩 포맷만 정의. “스키마·문서당 최대 인코딩 바이트” 규정 없음. 결과 크기는 스키마·옵션·내용에 따라 가변. |
+| **W3C EXI Profile (limiting dynamic memory)** | 없음 | 런타임 **메모리**(문법·값 테이블 상한) 제한. **인코딩 스트림 바이트 상한**은 다루지 않음. |
+
+따라서 **EXI payload 상한**을 얻는 방법은 다음 정도로 한정된다.
+
+1. **사양에서 유도**: 스키마(XSD)의 필드 maxLength·타입 상한만으로 **데이터 값 상한**(예: 79 B / 265 B)은 계산 가능. EXI 바이트 수는 인코더·옵션에 따라 달라져, 동일 스키마라도 “최대 N바이트”를 사양에서 직접 주지 않음.
+2. **구현 측정**: 사용하는 EXI 코덱(예: EXIficient)과 스키마로, CurrentDemand Req/Res의 **worst-case 인스턴스**를 인코딩해 측정. 이 경우 “이 구현·설정 기준 상한”만 보장됨.
+3. **표준 전문 확인**: ISO 15118-2/15118-20 **전문(유료)** 의 Annex나 Implementation guideline에 “메시지별 최대 EXI 크기”가 있을 수 있으나, 공개 검색으로는 확인되지 않음.
 
 **대략적인 XML 크기 (참고용)**  
 - CurrentDemandReq: 최소 필수만 해도 수십~100자 단위 XML, 선택 필드 모두 포함 시 수백 자 수준.
