@@ -1,6 +1,6 @@
 # DC Current Demand Req/Res — 데이터 크기, 구조, MAC 계층까지의 데이터 형태
 
-이 문서는 ISO 15118-2 및 DIN SPEC 70121에서 정의하는 **DC Current Demand Req/Res** 메시지의 **데이터 크기**, **데이터 구조**, 그리고 **MAC Layer에 도달했을 때의 데이터 형태**를 정리한 것이다. 본 레포지토리의 스키마·메시지 정의 및 전송 경로를 기준으로 작성하였다.
+이 문서는 ISO 15118-2 및 DIN SPEC 70121에서 정의하는 **DC Current Demand Req/Res** 메시지의 **데이터 크기**, **데이터 구조**, 그리고 **MAC Layer에 도달했을 때의 데이터 형태**를 정리한 것이다. 본 레포지토리의 스키마·메시지 정의 및 전송 경로를 기준으로 작성하였으며, 표준 검증 시 **ISO 15118-2:2014(E)** 및 **ISO 15118-20:2022(E)** PDF를 참조하였다.
 
 ---
 
@@ -109,11 +109,13 @@ Worst Case는 **MAC 계층에서 한 프레임으로 전송되는 전체 octet �
 
 #### 사양(ISO 15118-2 / DIN SPEC)에 있는 내용
 
+(아래는 **ISO 15118-2:2014(E)** 본문(제공 PDF) 기준으로 확인.)
+
 - **필드별 타입·상한**: 메시지 스키마(XSD)에 정의된 타입 제한만 있다.  
   예: `sessionIDType` hexBinary max 8, `evseIDType` string 7..37자, `meterIDType` max 32, `PhysicalValueType`(Multiplier/Unit/Value), `MeterInfoType` 내부 길이 등.  
   → 이로부터 **데이터 값 상한**(Req Body 71 B, Res Body 257 B, Header 8 B)을 **유도**할 수 있다.
-- **V2GTP 헤더**: ISO 15118-2 Section 7.8 등에서 **8 octets**로 정의.
-- **EXI 사용**: 사양에서 메시지를 EXI로 인코딩하도록 규정하지만, **CurrentDemand Req/Res에 대한 “EXI payload 최대 바이트 수”는 사양에 명시되어 있지 않다.**
+- **V2GTP**: Section 7.8.3.1 (Figure 8, Table 9) — 헤더 **8 bytes**, Payload Length **0…4 294 967 295** bytes(프로토콜 상한). 메시지별 EXI 상한은 규격에 없음.
+- **EXI**: Section 7.9.1(W3C EXI 1.0 사용), 7.9.1.3(EXI 옵션·프로파일). EXI payload 최대 바이트 수는 규격에 명시되어 있지 않다.
 
 #### 사양에 없는 내용 (본 문서 추정)
 
@@ -130,7 +132,7 @@ Worst Case는 **MAC 계층에서 한 프레임으로 전송되는 전체 octet �
 | **L4** | TCP 헤더 (옵션 없음) | 20 | IETF |
 | **TLS** (선택) | 레코드 헤더 + 패딩/오버헤드 | 약 21 | 일반적 추정 |
 | **V2GTP** | 헤더 | 8 | **ISO 15118-2** |
-| **V2GTP** | Payload (EXI) | 가변 | **사양에 상한 미명시** → 아래는 추정 |
+| **V2GTP** | Payload (EXI) | 가변 (프로토콜 상한 2^32-1) | 메시지별 상한 미명시 → 아래는 추정 |
 
 #### 애플리케이션 데이터 상한 (사양 스키마 기준)
 
@@ -175,7 +177,7 @@ EXI payload는 사양에 최대 길이가 없으므로, **스키마 기반 EXI�
 
 1. **사양에서 유도**: 스키마(XSD)의 필드 maxLength·타입 상한만으로 **데이터 값 상한**(예: 79 B / 265 B)은 계산 가능. EXI 바이트 수는 인코더·옵션에 따라 달라져, 동일 스키마라도 “최대 N바이트”를 사양에서 직접 주지 않음.
 2. **구현 측정**: 사용하는 EXI 코덱(예: EXIficient)과 스키마로, CurrentDemand Req/Res의 **worst-case 인스턴스**를 인코딩해 측정. 이 경우 “이 구현·설정 기준 상한”만 보장됨.
-3. **표준 전문 확인**: ISO 15118-2/15118-20 **전문(유료)** 의 Annex나 Implementation guideline에 “메시지별 최대 EXI 크기”가 있을 수 있으나, 공개 검색으로는 확인되지 않음.
+3. **표준 전문 확인**: ISO 15118-2/15118-20 **전문(유료)** 의 Annex나 Implementation guideline에 “메시지별 최대 EXI 크기”가 있을 수 있으나, ISO 15118-2:2014(E) PDF(예: ISO15118-2.pdf) Section 7.8.3.1 Table 9에 Payload Length 0…4294967295 bytes. 메시지별 EXI 상한은 본문에 없음.
 
 **대략적인 XML 크기 (참고용)**  
 - CurrentDemandReq: 최소 필수만 해도 수십~100자 단위 XML, 선택 필드 모두 포함 시 수백 자 수준.
@@ -265,9 +267,14 @@ Payload Type은 `ISOV2PayloadTypes.EXI_ENCODED` (0x8001) 등으로, 프로토콜
 
 ## 6. References
 
-1. **ISO 15118-2:2014** (또는 최신 에디션) — Road vehicles — Vehicle to grid communication interface — Part 2: Network and application protocol requirements. CurrentDemand 메시지 정의: Section 8.4.5.4 (Current Demand), 데이터 타입 및 메시지 구조.
-2. **DIN SPEC 70121** — Electric vehicle conductive charging system – Digital communication between a d.c. EV and an EVSE. DC Current Demand: Section 9.4.2.4.
-3. **ISO 15118-2 EXI** — ISO 15118-2에서 참조하는 EXI(Efficient XML Interchange) 스키마 및 인코딩 규칙. 메시지의 실제 바이너리 크기 및 형태 결정.
-4. **V2G Transfer Protocol (V2GTP)** — ISO 15118-2 Section 7.8 (또는 해당 절). 8-octet 헤더(Protocol Version, Inverse Protocol Version, Payload Type, Payload Length) + Payload 구조.
-5. **IETF / IEEE** — TCP over IPv6, link-local 주소 사용 (ISO 15118-2 네트워크 계층 요구사항).
+1. **ISO 15118-2:2014(E)** — *Road vehicles — Vehicle-to-Grid Communication Interface — Part 2: Network and application protocol requirements.* 본 문서의 데이터 구조·크기·프로토콜 스택 검증은 이 표준 PDF를 참조함.  
+   - CurrentDemand 메시지: Clause 8.4.5.4 (Current Demand).  
+   - V2GTP: Section 7.8.3.1 (Figure 8, Table 9) — 헤더 8 octets, Payload Length 0…4 294 967 295 bytes.  
+   - EXI: Section 7.9.1 (W3C EXI 1.0 사용), 7.9.1.3 (EXI 옵션·프로파일).  
+   - 스키마: Annex C (Schema definition).  
+   - 본 문서 검증 시 참조한 파일: **ISO15118-2.pdf** (예: `ISO15118-2.pdf` 또는 동일 표준 PDF).
+2. **ISO 15118-20:2022(E)** — *Road vehicles — Vehicle to grid communication interface — Part 20: 2nd generation network layer and application layer requirements.* 2세대 프로토콜. V2GTP(7.8), EXI·프레젠테이션 계층(7.9), TCP/IPv6(7.6, 7.7) 등 스택 요구사항 정의. 메시지 세트는 ISO 15118-2와 다르며, 본 문서의 CurrentDemand(1세대)와 동일한 메시지명/구조는 아님. 참조 파일: **iso15118-20.pdf**.
+3. **DIN SPEC 70121** — Electric vehicle conductive charging system – Digital communication between a d.c. EV and an EVSE. DC Current Demand: Section 9.4.2.4.
+4. **W3C EXI 1.0** — Efficient XML Interchange (EXI) Format 1.0, W3C Recommendation (March 2011). ISO 15118-2 Normative references에서 참조.
+5. **IETF / IEEE** — TCP over IPv6, link-local 주소 사용 (ISO 15118-2 Section 7.6, 7.7).
 6. **본 프로젝트 (SwitchEV/iso15118)** — GitHub: [iso15118](https://github.com/SwitchEV/iso15118). Python 기반 ISO 15118-2 / -20 및 DIN SPEC 70121 구현, EXI 코덱, V2GTP 및 TCP 전송 로직.
