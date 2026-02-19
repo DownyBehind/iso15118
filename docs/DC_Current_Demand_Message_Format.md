@@ -70,7 +70,7 @@
 | EVSEMaximumVoltageLimit | PhysicalValueType | minOccurs="0" | 0 또는 3요소 |
 | EVSEMaximumCurrentLimit | PhysicalValueType | minOccurs="0" | 0 또는 3요소 |
 | EVSEMaximumPowerLimit | PhysicalValueType | minOccurs="0" | 0 또는 3요소 |
-| EVSEID | evseIDType | string, 7..37자 | 7~37 bytes (UTF-8) |
+| EVSEID | evseIDType | string, 7..37자 | 7~37 bytes (UTF-8). 표준 Table 56에는 hexBinary로 잘못 기재됨(구현은 문자열). |
 | SAScheduleTupleID | SAIDType | unsignedByte 1..255 | 1 byte |
 | MeterInfo | MeterInfoType | minOccurs="0" | 0 또는 구조체 |
 | ReceiptRequired | xs:boolean | minOccurs="0" | 0 또는 1 |
@@ -86,6 +86,7 @@
 
 ### 2.4 DIN SPEC 70121과의 차이
 
+- **CurrentDemandReq**: 구조는 동일. DIN은 PhysicalValue 등에 DIN 전용 타입(접미사 Din) 사용(동일 XSD 타입 기반).
 - **CurrentDemandRes**: DIN에는 `EVSEID`, `SAScheduleTupleID`, `MeterInfo`, `ReceiptRequired`가 없음.  
   스키마: `iso15118/shared/schemas/din_spec/V2G_CI_MsgBody.xsd`, 구현: `iso15118/shared/messages/din_spec/body.py`
 
@@ -136,9 +137,9 @@ TLS를 사용하는 구성에서는 **TCP 위에 TLS 레코드**가 올라가고
 | 0 | 1 byte | Protocol Version | 0x01 |
 | 1 | 1 byte | Inverse Protocol Version | 0xFE |
 | 2–3 | 2 bytes | Payload Type | EXI encoded 등 (빅엔디안) |
-| 4–7 | 4 bytes | Payload Length | EXI payload 길이 (빅엔디안) |
+| 4–7 | 4 bytes | Payload Length | EXI payload 길이(바이트). 빅엔디안. 헤더 8바이트는 제외. |
 
-Payload Type은 `ISOV2PayloadTypes.EXI_ENCODED` 등으로, 프로토콜별 enum이 정의되어 있다.  
+Payload Type은 `ISOV2PayloadTypes.EXI_ENCODED` (0x8001) 등으로, 프로토콜별 enum이 정의되어 있다.  
 (`iso15118/shared/messages/enums.py`, `v2gtp.py`)
 
 ### 4.3 MAC 계층에서 보이는 형태 (개념)
@@ -183,7 +184,8 @@ Payload Type은 `ISOV2PayloadTypes.EXI_ENCODED` 등으로, 프로토콜별 enum�
 | V2GTP 메시지 형식 및 to_bytes() | `iso15118/shared/messages/v2gtp.py` |
 | EXI 인코딩 및 다음 메시지 생성 | `iso15118/shared/states.py` (create_next_message), `iso15118/shared/exi_codec.py` |
 | TCP 전송 | `iso15118/shared/comm_session.py` (send, V2GTPMessage) |
-| CurrentDemand 타임아웃 | `iso15118/shared/messages/iso15118_2/timeouts.py` (CURRENT_DEMAND_REQ = 0.25 s) |
+| CurrentDemand 타임아웃 (ISO 15118-2) | `iso15118/shared/messages/iso15118_2/timeouts.py` (CURRENT_DEMAND_REQ = 0.25 s) |
+| CurrentDemand 타임아웃 (DIN SPEC) | `iso15118/shared/messages/din_spec/timeouts.py` (CURRENT_DEMAND_REQ = 0.25 s) |
 
 ---
 
