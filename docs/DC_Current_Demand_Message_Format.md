@@ -278,3 +278,39 @@ Payload Type은 `ISOV2PayloadTypes.EXI_ENCODED` (0x8001) 등으로, 프로토콜
 4. **W3C EXI 1.0** — Efficient XML Interchange (EXI) Format 1.0, W3C Recommendation (March 2011). ISO 15118-2 Normative references에서 참조.
 5. **IETF / IEEE** — TCP over IPv6, link-local 주소 사용 (ISO 15118-2 Section 7.6, 7.7).
 6. **본 프로젝트 (SwitchEV/iso15118)** — GitHub: [iso15118](https://github.com/SwitchEV/iso15118). Python 기반 ISO 15118-2 / -20 및 DIN SPEC 70121 구현, EXI 코덱, V2GTP 및 TCP 전송 로직.
+
+---
+
+## 7. 연구에서 추정 Worst Case MAC 크기 사용 시 언급 사항
+
+Worst Case MAC Layer 데이터 크기가 표준에 정의되어 있지 않아, 본 문서의 **추정치**(예: Req 232 B, Res 462 B)를 연구·논문·보고서에서 사용할 경우, 아래 내용을 명시하는 것이 좋다.
+
+### 7.1 논문/보고서에 넣을 수 있는 문장 예시
+
+**방법론·데이터 출처 (영문)**
+
+- *"Worst-case MAC frame sizes for CurrentDemandReq and CurrentDemandRes are not specified in ISO 15118-2, DIN SPEC 70121, or ISO 15118-20. The values used in this study (e.g., 232 bytes and 462 bytes for Req and Res, respectively) are **estimates derived from** the message schema (XSD) upper bounds and a schema-informed EXI encoding assumption, with standard protocol headers (Ethernet, IPv6, TCP, V2GTP) applied as per the referenced standards."*
+
+**방법론·데이터 출처 (한국어)**
+
+- *"CurrentDemandReq/Res에 대한 worst-case MAC 프레임 크기는 ISO 15118-2, DIN SPEC 70121, ISO 15118-20에 정의되어 있지 않다. 본 연구에서 사용한 크기(Req 232 bytes, Res 462 bytes 등)는 **스키마(XSD) 상한과 스키마 기반 EXI 인코딩 가정으로부터 유도한 추정치**이며, 이더넷·IPv6·TCP·V2GTP 헤더는 각 표준에 따라 적용하였다."*
+
+### 7.2 반드시 언급할 내용 (체크리스트)
+
+| 항목 | 권장 표현 요지 |
+|------|------------------|
+| **표준에 없음** | "Worst-case MAC(또는 EXI) size는 ISO 15118-2 / DIN SPEC 70121에 **명시되어 있지 않다**." |
+| **추정임** | "해당 값은 **추정치**(estimated/derived)이며 규격값(normative)이 아니다." |
+| **근거** | "**XSD 타입·maxLength 상한** 및 **스키마 기반 EXI 인코딩**을 전제로 산출하였다." |
+| **구현 의존** | "실제 크기는 **EXI 구현 및 옵션**에 따라 달라질 수 있다." |
+| **참고 문서** | "추정 방법(및 수치)은 [본 문서 또는 해당 섹션]을 참조하였다." |
+
+### 7.3 인용/각주 예시
+
+- *"본 연구의 CurrentDemand Req/Res worst-case MAC 프레임 크기(232 B / 462 B)는 표준에 정의된 값이 아니며, 스키마 상한 및 EXI 추정을 통해 유도한 값이다 [참고: DC_Current_Demand_Message_Format 문서 또는 해당 기술 보고서]."*
+
+- *"ISO 15118-2 Section 7.8.3.1은 V2GTP payload 길이를 0…4 294 967 295 bytes로만 정의하며, 메시지별 EXI 또는 MAC 상한은 규격에 없음. 따라서 본 논문에서는 [해당 문서/섹션]의 추정 방법을 따랐다."*
+
+### 7.4 한 줄 요약
+
+- *"Worst-case MAC sizes used here are **non-normative estimates** (schema-based EXI + protocol headers), as the standards do not specify per-message MAC or EXI upper bounds."*
